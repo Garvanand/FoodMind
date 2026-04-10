@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Flame, Zap, Droplets, ChevronRight, X, Apple } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { AiSkeleton, ErrorToast } from './AiSkeleton';
-import { predictRegret, RegretPrediction } from '../lib/gemini';
+import { predictRegret, RegretPrediction, analyzeFoodImage } from '../lib/gemini';
 import { saveMeal, getAllMeals, getTodayMeals, getTodayMood, generateId } from '../lib/storage';
 import type { MealEntry } from '../lib/storage';
 
@@ -23,6 +23,9 @@ export default function FoodLogTab() {
   const [regretLoading, setRegretLoading] = useState(false);
   const [regretError, setRegretError] = useState(false);
   const [lastLoggedFood, setLastLoggedFood] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const totalCal = todayMeals.reduce((s, m) => s + (m.macros?.calories || 0), 0);
   const totalCarbs = todayMeals.reduce((s, m) => s + (m.macros?.carbs || 0), 0);
@@ -97,6 +100,51 @@ export default function FoodLogTab() {
     setRegretLoading(false);
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsScanning(true);
+    setScanError('');
+    setShowAddModal(false);
+
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        try {
+          const aiResult = await analyzeFoodImage(base64);
+          const meal: MealEntry = {
+            id: generateId(),
+            foodName: aiResult.foodName,
+            macros: { calories: aiResult.calories, carbs: aiResult.carbs, protein: aiResult.protein, fats: aiResult.fats },
+            timestamp: Date.now(),
+            moodAtTime: getTodayMood(),
+          };
+          saveMeal(meal);
+          setTodayMeals(getTodayMeals());
+          setLastLoggedFood(aiResult.foodName);
+          setTimeout(() => triggerRegretPredictor(aiResult.foodName), 2000);
+        } catch (err) {
+          setScanError('Failed to analyze image. Please try again.');
+        } finally {
+          setIsScanning(false);
+        }
+      };
+      reader.onerror = () => {
+        setScanError('Failed to read image file.');
+        setIsScanning(false);
+      };
+    } catch (err) {
+      setScanError('An unexpected error occurred.');
+      setIsScanning(false);
+    }
+    
+    // reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const regretColor = (prob: string) => {
     if (prob === 'High') return 'text-accent-red';
     if (prob === 'Medium') return 'text-accent-cream';
@@ -112,6 +160,26 @@ export default function FoodLogTab() {
   return (
     <div className="px-5 pt-3 pb-6 space-y-5 relative">
       {regretError && <ErrorToast message="AI unavailable — showing cached data" />}
+      {scanError && <ErrorToast message={scanError} />}
+
+      {/* Scanning Overlay */}
+      <AnimatePresence>
+        {isScanning && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md"
+          >
+            <div className="relative w-48 h-48 border-2 border-accent-lime/30 rounded-[30px] overflow-hidden mb-6 flex items-center justify-center">
+              <span className="text-6xl">✨</span>
+              <div className="absolute left-0 right-0 h-1 bg-accent-lime animate-scan shadow-[0_0_20px_#C8F069]" />
+            </div>
+            <h2 className="text-xl font-bold text-accent-lime text-center animate-pulse">Gemini Vision</h2>
+            <p className="text-sm text-white/50 text-center mt-2">Analyzing food macros...</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -300,6 +368,27 @@ export default function FoodLogTab() {
                 <h2 className="text-lg font-bold">Add Food</h2>
                 <button onClick={() => setShowAddModal(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
                   <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Camera / Image Scan */}
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-white/10 transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-full bg-accent-lime/20 flex items-center justify-center text-accent-lime">
+                    <span className="text-2xl">📷</span>
+                  </div>
+                  <span className="text-sm font-bold text-white/70">Scan Food</span>
                 </button>
               </div>
 
