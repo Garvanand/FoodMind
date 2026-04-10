@@ -52,9 +52,11 @@ export default function FoodLogTab() {
 
   const logCustomFood = () => {
     if (!customFood.trim()) return;
+    const cleanFoodString = DOMPurify.sanitize(customFood.trim().substring(0, 50));
+
     const meal: MealEntry = {
       id: generateId(),
-      foodName: customFood.trim(),
+      foodName: cleanFoodString,
       macros: { calories: 300, carbs: 30, protein: 15, fats: 10 },
       timestamp: Date.now(),
       moodAtTime: getTodayMood(),
@@ -62,9 +64,9 @@ export default function FoodLogTab() {
     saveMeal(meal);
     setTodayMeals(getTodayMeals());
     setShowAddModal(false);
-    setLastLoggedFood(customFood.trim());
+    setLastLoggedFood(cleanFoodString);
     setCustomFood('');
-    setTimeout(() => triggerRegretPredictor(customFood.trim()), 2000);
+    setTimeout(() => triggerRegretPredictor(cleanFoodString), 2000);
   };
 
   const triggerRegretPredictor = async (foodName: string) => {
@@ -145,73 +147,6 @@ export default function FoodLogTab() {
     // reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
-
-  const triggerRegretPredictor = async (foodName: string) => {
-    setRegretSheet(null);
-    setRegretLoading(true);
-    setRegretError(false);
-    try {
-      const result = await predictRegret(
-        foodName,
-        new Date().toLocaleTimeString(),
-        'Today',
-        'Balanced so far',
-        getTodayMood()
-      );
-      setRegretSheet(result);
-    } catch {
-      setRegretError(true);
-      setRegretSheet({
-        regretProbability: 'Medium',
-        probabilityPercent: 65,
-        personalReason: 'You typically feel sluggish if you log heavy items around this time.',
-        reflectionQuestion: 'Are you eating this for fuel or comfort right now?',
-        betterAlternative: 'A lighter protein wrap',
-      });
-    } finally {
-      setRegretLoading(false);
-    }
-  };
-
-  const logFood = (f: { name: string; cal: number; carbs: number; protein: number; fats: number }) => {
-    const meal: MealEntry = {
-      id: generateId(),
-      foodName: f.name,
-      macros: { calories: f.cal, carbs: f.carbs, protein: f.protein, fats: f.fats },
-      timestamp: Date.now(),
-      moodAtTime: getTodayMood(),
-    };
-    saveMeal(meal);
-    setTodayMeals(getTodayMeals());
-    setShowAddModal(false);
-    setLastLoggedFood(f.name);
-
-    setTimeout(() => {
-      triggerRegretPredictor(f.name);
-    }, 2000);
-  };
-
-  const logCustomFood = () => {
-    if (!customFood.trim()) return;
-    const cleanFoodString = DOMPurify.sanitize(customFood.trim().substring(0, 50));
-    
-    const meal: MealEntry = {
-      id: generateId(),
-      foodName: cleanFoodString,
-      timestamp: Date.now(),
-      moodAtTime: getTodayMood(),
-    };
-    saveMeal(meal);
-    setTodayMeals(getTodayMeals());
-    setCustomFood('');
-    setShowAddModal(false);
-    setLastLoggedFood(cleanFoodString);
-
-    setTimeout(() => {
-      triggerRegretPredictor(cleanFoodString);
-    }, 2000);
-  };
-
 
   const regretColor = (prob: string) => {
     if (prob === 'High') return 'text-accent-red';
