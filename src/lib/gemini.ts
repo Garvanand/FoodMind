@@ -1,6 +1,6 @@
 // ─── Gemini API Service for FoodMind ───
 
-const GEMINI_API_KEY = "YOUR_API_KEY_HERE";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyDCgnYU08DGj0aOIDvODHz288ARxqU1gO4";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 export async function callGemini(prompt: string): Promise<any> {

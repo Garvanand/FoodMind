@@ -127,6 +127,68 @@ export default function FoodLogTab() {
         </button>
       </div>
 
+      {/* Flower Petal Ingredient Visualizer — 6 petals, 60° apart */}
+      <div className="flex justify-center py-2">
+        <div className="relative w-40 h-40">
+          {/* Center circle */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-accent-lime/20 border-2 border-accent-lime/30 flex items-center justify-center z-10">
+            <span className="text-[10px] font-bold text-accent-lime uppercase">
+              {totalCal || 0}
+            </span>
+          </div>
+          {/* 6 petals at 0°, 60°, 120°, 180°, 240°, 300° */}
+          {[
+            { angle: 0, label: 'Carbs', value: `${totalCarbs}g`, color: '#f59e0b' },
+            { angle: 60, label: 'Protein', value: `${totalProtein}g`, color: '#3b82f6' },
+            { angle: 120, label: 'Fats', value: `${totalFats}g`, color: '#f43f5e' },
+            { angle: 180, label: 'Fiber', value: '8g', color: '#C8F069' },
+            { angle: 240, label: 'Sugar', value: '12g', color: '#E8D5A3' },
+            { angle: 300, label: 'Water', value: '2L', color: '#00BFFF' },
+          ].map((petal, i) => {
+            const rad = (petal.angle - 90) * (Math.PI / 180);
+            const x = 80 + 52 * Math.cos(rad);
+            const y = 80 + 52 * Math.sin(rad);
+            return (
+              <motion.div
+                key={petal.label}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: i * 0.08, type: 'spring', stiffness: 200 }}
+                className="absolute flex flex-col items-center justify-center w-12 h-12 rounded-full"
+                style={{
+                  left: x - 24,
+                  top: y - 24,
+                  backgroundColor: petal.color + '22',
+                  border: `2px solid ${petal.color}40`,
+                }}
+              >
+                <span className="text-[9px] font-black" style={{ color: petal.color }}>{petal.value}</span>
+                <span className="text-[7px] font-bold text-white/40 uppercase">{petal.label}</span>
+              </motion.div>
+            );
+          })}
+          {/* Connecting lines */}
+          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 160 160">
+            {[0, 60, 120, 180, 240, 300].map((angle, i) => {
+              const rad = (angle - 90) * (Math.PI / 180);
+              const x = 80 + 42 * Math.cos(rad);
+              const y = 80 + 42 * Math.sin(rad);
+              return (
+                <motion.line
+                  key={i}
+                  x1="80" y1="80" x2={x} y2={y}
+                  stroke="rgba(200,240,105,0.15)"
+                  strokeWidth="1"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ delay: i * 0.08, duration: 0.4 }}
+                />
+              );
+            })}
+          </svg>
+        </div>
+      </div>
+
       {/* Daily Progress — warm card */}
       <div className="rounded-3xl p-5 space-y-4" style={{ background: '#F0EDE6' }}>
         <div className="flex justify-between items-start">
