@@ -69,7 +69,7 @@ export default function App() {
         </main>
 
         {/* Bottom Navigation */}
-        <nav className="absolute bottom-0 left-0 right-0 h-24 bg-background/90 backdrop-blur-2xl border-t border-white/5 px-6 flex items-center justify-between pb-6 z-50">
+        <nav role="tablist" aria-label="Bottom Navigation" className="absolute bottom-0 left-0 right-0 h-24 bg-background/90 backdrop-blur-2xl border-t border-white/5 px-6 flex items-center justify-between pb-6 z-50">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -78,6 +78,9 @@ export default function App() {
             return (
               <button
                 key={tab.id}
+                role="tab"
+                aria-label={tab.label}
+                aria-selected={isActive}
                 id={`nav-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
