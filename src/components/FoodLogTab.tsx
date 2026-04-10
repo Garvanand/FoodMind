@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { AiSkeleton, ErrorToast } from './AiSkeleton';
 import { predictRegret, RegretPrediction, analyzeFoodImage } from '../lib/gemini';
 import { saveMeal, getAllMeals, getTodayMeals, getTodayMood, generateId } from '../lib/storage';
+import DOMPurify from 'dompurify';
 import type { MealEntry } from '../lib/storage';
 
 const SAMPLE_FOODS = [
@@ -144,6 +145,73 @@ export default function FoodLogTab() {
     // reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  const triggerRegretPredictor = async (foodName: string) => {
+    setRegretSheet(null);
+    setRegretLoading(true);
+    setRegretError(false);
+    try {
+      const result = await predictRegret(
+        foodName,
+        new Date().toLocaleTimeString(),
+        'Today',
+        'Balanced so far',
+        getTodayMood()
+      );
+      setRegretSheet(result);
+    } catch {
+      setRegretError(true);
+      setRegretSheet({
+        regretProbability: 'Medium',
+        probabilityPercent: 65,
+        personalReason: 'You typically feel sluggish if you log heavy items around this time.',
+        reflectionQuestion: 'Are you eating this for fuel or comfort right now?',
+        betterAlternative: 'A lighter protein wrap',
+      });
+    } finally {
+      setRegretLoading(false);
+    }
+  };
+
+  const logFood = (f: { name: string; cal: number; carbs: number; protein: number; fats: number }) => {
+    const meal: MealEntry = {
+      id: generateId(),
+      foodName: f.name,
+      macros: { calories: f.cal, carbs: f.carbs, protein: f.protein, fats: f.fats },
+      timestamp: Date.now(),
+      moodAtTime: getTodayMood(),
+    };
+    saveMeal(meal);
+    setTodayMeals(getTodayMeals());
+    setShowAddModal(false);
+    setLastLoggedFood(f.name);
+
+    setTimeout(() => {
+      triggerRegretPredictor(f.name);
+    }, 2000);
+  };
+
+  const logCustomFood = () => {
+    if (!customFood.trim()) return;
+    const cleanFoodString = DOMPurify.sanitize(customFood.trim().substring(0, 50));
+    
+    const meal: MealEntry = {
+      id: generateId(),
+      foodName: cleanFoodString,
+      timestamp: Date.now(),
+      moodAtTime: getTodayMood(),
+    };
+    saveMeal(meal);
+    setTodayMeals(getTodayMeals());
+    setCustomFood('');
+    setShowAddModal(false);
+    setLastLoggedFood(cleanFoodString);
+
+    setTimeout(() => {
+      triggerRegretPredictor(cleanFoodString);
+    }, 2000);
+  };
+
 
   const regretColor = (prob: string) => {
     if (prob === 'High') return 'text-accent-red';
@@ -318,7 +386,7 @@ export default function FoodLogTab() {
           <div className="glass-card p-8 flex flex-col items-center gap-3 text-white/30">
             <span className="text-3xl">🍽️</span>
             <p className="text-xs font-medium">No meals logged yet today</p>
-            <button onClick={() => setShowAddModal(true)} className="text-accent-lime text-xs font-bold">
+            <button aria-label="Log your first meal" onClick={() => setShowAddModal(true)} className="text-accent-lime text-xs font-bold">
               + Log your first meal
             </button>
           </div>
@@ -357,6 +425,9 @@ export default function FoodLogTab() {
             onClick={() => setShowAddModal(false)}
           >
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="add-food-title"
               initial={{ translateY: '100%' }}
               animate={{ translateY: 0 }}
               exit={{ translateY: '100%' }}
@@ -365,8 +436,8 @@ export default function FoodLogTab() {
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold">Add Food</h2>
-                <button onClick={() => setShowAddModal(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                <h2 id="add-food-title" className="text-lg font-bold">Add Food</h2>
+                <button aria-label="Close modal" onClick={() => setShowAddModal(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -396,6 +467,7 @@ export default function FoodLogTab() {
               <div className="flex gap-2">
                 <input
                   type="text"
+                  aria-label="Custom food input"
                   value={customFood}
                   onChange={e => setCustomFood(e.target.value)}
                   placeholder="Type food name..."
@@ -403,6 +475,7 @@ export default function FoodLogTab() {
                   onKeyDown={e => e.key === 'Enter' && logCustomFood()}
                 />
                 <button
+                  aria-label="Log custom food"
                   onClick={logCustomFood}
                   className="px-5 py-3 bg-accent-lime text-black rounded-2xl font-bold text-sm"
                 >
@@ -447,6 +520,9 @@ export default function FoodLogTab() {
             onClick={dismissRegret}
           >
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="regret-title"
               initial={{ translateY: '100%' }}
               animate={{ translateY: 0 }}
               exit={{ translateY: '100%' }}
@@ -457,7 +533,7 @@ export default function FoodLogTab() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🔮</span>
-                  <h3 className="font-bold text-sm">Regret Predictor</h3>
+                  <h3 id="regret-title" className="font-bold text-sm">Regret Predictor</h3>
                 </div>
                 <span className="text-[10px] text-white/40">for {lastLoggedFood}</span>
               </div>

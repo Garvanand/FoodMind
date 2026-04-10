@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { AiSkeleton, ErrorToast } from './AiSkeleton';
 import { scoreFoodContextually, FoodScoreResult } from '../lib/gemini';
 import { getTodayActivity } from '../lib/storage';
+import DOMPurify from 'dompurify';
 
 export default function CheckTab() {
   const [query, setQuery] = useState('');
@@ -38,13 +39,15 @@ export default function CheckTab() {
 
   const checkFood = async () => {
     if (!query.trim()) return;
+    const cleanQuery = DOMPurify.sanitize(query.trim().substring(0, 100));
+
     setLoading(true);
     setError(false);
     setResult(null);
     setShowSwap(false);
     try {
       const activity = getTodayActivity();
-      const res = await scoreFoodContextually(query.trim(), {
+      const res = await scoreFoodContextually(cleanQuery, {
         hour: new Date().getHours(),
         postWorkout: activity.gymToday,
         stress: activity.stressLevel,
@@ -98,9 +101,11 @@ export default function CheckTab() {
 
       {/* Search Bar */}
       <div className="flex gap-2">
+        <label htmlFor="food-search-query" className="sr-only">Search for food</label>
         <div className="flex-1 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
           <input
+            id="food-search-query"
             ref={inputRef}
             type="text"
             value={query}
@@ -111,6 +116,7 @@ export default function CheckTab() {
           />
         </div>
         <button
+          aria-label="Submit check"
           onClick={checkFood}
           disabled={loading || !query.trim()}
           className="px-5 py-3.5 bg-accent-lime text-black rounded-2xl font-bold text-sm disabled:opacity-40 transition-opacity"
